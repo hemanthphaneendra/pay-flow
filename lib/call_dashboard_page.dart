@@ -99,6 +99,92 @@ class _CallDashboardPageState extends State<CallDashboardPage>
     }
   }
 
+  Future<void> _showCompletionNotesDialog(CallRequest request) async {
+    final formKey = GlobalKey<FormState>();
+    final controller = TextEditingController(
+      text: request.completionNotes ?? '',
+    );
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          title: Text(
+            (request.completionNotes?.isNotEmpty ?? false)
+                ? 'Update Completion Notes'
+                : 'Add Completion Notes',
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Completion Notes',
+                hintText: 'Add any context about this completed call',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter some notes';
+                }
+                if (value.trim().length < 5) {
+                  return 'Please enter at least 5 characters';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (formKey.currentState?.validate() != true) {
+                  return;
+                }
+                try {
+                  await UserService.updateCompletionNotes(
+                    requestId: request.id,
+                    notes: controller.text.trim(),
+                    updatedBy: widget.username,
+                  );
+                  if (mounted) {
+                    Navigator.of(dialogCtx).pop(true);
+                  }
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to save notes: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (mounted && saved == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completion notes saved'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {});
+    }
+  }
+
   String _formatAmount(double amount) {
     return amount.toStringAsFixed(2);
   }
@@ -465,7 +551,7 @@ class _CallDashboardPageState extends State<CallDashboardPage>
       case CallRequestStatus.pendingCredit:
         return 'Pending Credit';
       case CallRequestStatus.draft:
-        return 'Draft';
+        return 'Ongoing';
 
       case CallRequestStatus.completed:
       case CallRequestStatus.pendingReport:
@@ -558,10 +644,10 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                           2: FlexColumnWidth(1), // Duration
                           3: FlexColumnWidth(1), // Amount
                           4: FlexColumnWidth(1), // Amount Spent
-                          5: FlexColumnWidth(2), // Expense Type & Amount
-                          6: FlexColumnWidth(1), // Status
-                          7: FlexColumnWidth(1), // Due Date or Notes
-                          8: FlexColumnWidth(1), // Notes or Actions
+                          5: FlexColumnWidth(1.2), // Owes / Owed
+                          6: FlexColumnWidth(2), // Expense Type & Amount
+                          7: FlexColumnWidth(1), // Status
+                          8: FlexColumnWidth(1), // Notes
                           9: FlexColumnWidth(2.5), // Actions (if exists)
                         }
                       : const <int, TableColumnWidth>{
@@ -585,6 +671,7 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                         _tableHeaderCell('Duration'),
                         _tableHeaderCell('Amount'),
                         if (isCompleted) _tableHeaderCell('Amount Spent'),
+                        if (isCompleted) _tableHeaderCell('Owes / Owed'),
                         _tableHeaderCell('Expense Type & Amount'),
                         _tableHeaderCell('Status'),
 
@@ -592,8 +679,14 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                         _tableHeaderCell('Actions'),
                       ],
                     ),
-                    ...requests.map(
-                      (request) => TableRow(
+                    ...requests.map((request) {
+                      final totalSpent = request.expenses.fold<double>(
+                        0.0,
+                        (sum, e) => sum + e.amount,
+                      );
+                      final settlementDiff = totalSpent - request.finalAmount;
+
+                      return TableRow(
                         children: [
                           _tableCell(
                             Text(
@@ -642,7 +735,7 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                           if (isCompleted)
                             _tableCell(
                               Text(
-                                '₹${_formatAmount(request.expenses.fold(0.0, (s, e) => s + e.amount))}',
+                                '₹${_formatAmount(totalSpent)}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
@@ -650,6 +743,10 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
+                            ),
+                          if (isCompleted)
+                            _tableCell(
+                              _buildSettlementIndicator(settlementDiff),
                             ),
                           // Expense type & amount column (placeholder for now)
                           _tableCell(
@@ -840,12 +937,40 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                                             _showCompleteCallDialog(request),
                                       ),
                                     ],
+                                    if (request.status ==
+                                        CallRequestStatus.completed)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_note_outlined,
+                                          color: Colors.blue,
+                                        ),
+                                        tooltip: 'Edit Expenses',
+                                        onPressed: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ExpenseEditorPage(
+                                                    callRequest: request,
+                                                    onSave: (_) =>
+                                                        setState(() {}),
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     // Upload report for completed calls
                                     if (request.status ==
                                             CallRequestStatus.completed ||
                                         request.status ==
+                                            CallRequestStatus.pendingReport ||
+                                        request.status ==
+                                            CallRequestStatus.poPending ||
+                                        request.status ==
+                                            CallRequestStatus.pendingInvoice ||
+                                        request.status ==
                                             CallRequestStatus
-                                                .pendingReport) ...[
+                                                .invoiceCreated) ...[
                                       IconButton(
                                         icon: Icon(
                                           Icons.upload_file,
@@ -870,6 +995,29 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                                             _showUploadReportDialog(request),
                                       ),
                                     ],
+                                    if (request.status ==
+                                        CallRequestStatus.completed)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.note_alt_outlined,
+                                          color:
+                                              (request
+                                                      .completionNotes
+                                                      ?.isNotEmpty ??
+                                                  false)
+                                              ? Colors.deepPurple
+                                              : Colors.grey.shade800,
+                                        ),
+                                        tooltip:
+                                            (request
+                                                    .completionNotes
+                                                    ?.isNotEmpty ??
+                                                false)
+                                            ? 'Edit Completion Notes'
+                                            : 'Add Completion Notes',
+                                        onPressed: () =>
+                                            _showCompletionNotesDialog(request),
+                                      ),
                                     // Duration extension for active calls
                                     if (request.status ==
                                             CallRequestStatus.draft ||
@@ -990,8 +1138,8 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                             ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -1013,6 +1161,53 @@ class _CallDashboardPageState extends State<CallDashboardPage>
           fontSize: 13,
           color: Colors.blueGrey,
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettlementIndicator(double difference) {
+    if (difference.abs() < 0.01) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          'Settled',
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    final bool companyOwes = difference > 0;
+    final displayAmount = _formatAmount(difference.abs());
+    final Color borderColor = companyOwes
+        ? Colors.green.shade300
+        : Colors.red.shade300;
+    final Color backgroundColor = companyOwes
+        ? Colors.green.shade50
+        : Colors.red.shade50;
+    final Color textColor = companyOwes
+        ? Colors.green.shade700
+        : Colors.red.shade700;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        companyOwes
+            ? 'Company owes ₹$displayAmount'
+            : 'You owe ₹$displayAmount',
+        style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1291,9 +1486,9 @@ class _CallDashboardPageState extends State<CallDashboardPage>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.drafts, size: 18),
+                          const Icon(Icons.pending_actions, size: 18),
                           const SizedBox(height: 4),
-                          Text('Draft (${draftRequests.length})'),
+                          Text('Ongoing (${draftRequests.length})'),
                         ],
                       ),
                     ),

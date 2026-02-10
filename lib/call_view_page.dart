@@ -251,6 +251,21 @@ class _CallViewPageState extends State<CallViewPage> {
                     _buildPdfDetailRow('Manager Modified Amount', 'Rs. ${widget.callRequest.requestedAmount.toStringAsFixed(2)} → Rs. ${widget.callRequest.approvedAmount!.toStringAsFixed(2)}'),
                   
                   _buildPdfDetailRow('Notes', widget.callRequest.notes),
+                  if ((widget.callRequest.completionNotes ?? '').isNotEmpty)
+                    _buildPdfDetailRow(
+                      'Completion Notes',
+                      widget.callRequest.completionNotes!,
+                    ),
+                  if (widget.callRequest.completionNotesUpdatedBy != null)
+                    _buildPdfDetailRow(
+                      'Completion Notes Updated By',
+                      widget.callRequest.completionNotesUpdatedBy!,
+                    ),
+                  if (widget.callRequest.completionNotesUpdatedAt != null)
+                    _buildPdfDetailRow(
+                      'Completion Notes Updated At',
+                      widget.callRequest.completionNotesUpdatedAt.toString(),
+                    ),
                   
                   if (widget.callRequest.rejectionReason != null)
                     _buildPdfDetailRow('Rejection Reason', widget.callRequest.rejectionReason!),
@@ -752,6 +767,21 @@ class _CallViewPageState extends State<CallViewPage> {
                       '₹${widget.callRequest.requestedAmount.toStringAsFixed(2)} → ₹${widget.callRequest.approvedAmount!.toStringAsFixed(2)}',
                     ),
                   _detailRow('Notes', widget.callRequest.notes),
+                  if ((widget.callRequest.completionNotes ?? '').isNotEmpty)
+                    _detailRow(
+                      'Completion Notes',
+                      widget.callRequest.completionNotes!,
+                    ),
+                  if (widget.callRequest.completionNotesUpdatedBy != null)
+                    _detailRow(
+                      'Completion Notes Updated By',
+                      widget.callRequest.completionNotesUpdatedBy!,
+                    ),
+                  if (widget.callRequest.completionNotesUpdatedAt != null)
+                    _detailRow(
+                      'Completion Notes Updated At',
+                      widget.callRequest.completionNotesUpdatedAt.toString(),
+                    ),
                   if (widget.callRequest.rejectionReason != null)
                     _detailRow(
                       'Rejection Reason',

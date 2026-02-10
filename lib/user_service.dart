@@ -238,6 +238,9 @@ class CallRequest {
   final double requestedAmount;
   final double? approvedAmount;
   final String notes;
+  final String? completionNotes;
+  final String? completionNotesUpdatedBy;
+  final DateTime? completionNotesUpdatedAt;
   final CallRequestStatus status;
   final DateTime createdAt;
   final DateTime? approvedAt;
@@ -268,6 +271,9 @@ class CallRequest {
     required this.requestedAmount,
     this.approvedAmount,
     required this.notes,
+    this.completionNotes,
+    this.completionNotesUpdatedBy,
+    this.completionNotesUpdatedAt,
     required this.status,
     required this.createdAt,
     this.approvedAt,
@@ -301,6 +307,10 @@ class CallRequest {
       requestedAmount: (data['requestedAmount'] ?? 0).toDouble(),
       approvedAmount: data['approvedAmount']?.toDouble(),
       notes: data['notes'] ?? '',
+      completionNotes: data['completionNotes']?.toString(),
+      completionNotesUpdatedBy: data['completionNotesUpdatedBy']?.toString(),
+      completionNotesUpdatedAt: (data['completionNotesUpdatedAt'] as Timestamp?)
+          ?.toDate(),
       status: _parseCallRequestStatus(data['status']),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       approvedAt: (data['approvedAt'] as Timestamp?)?.toDate(),
@@ -614,6 +624,18 @@ class UserService {
 
     await _firestore.collection('call_requests').doc(requestId).update({
       'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  static Future<void> updateCompletionNotes({
+    required String requestId,
+    required String notes,
+    required String updatedBy,
+  }) async {
+    await _firestore.collection('call_requests').doc(requestId).update({
+      'completionNotes': notes,
+      'completionNotesUpdatedBy': updatedBy,
+      'completionNotesUpdatedAt': FieldValue.serverTimestamp(),
     });
   }
 

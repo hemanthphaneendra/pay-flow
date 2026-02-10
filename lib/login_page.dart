@@ -290,7 +290,7 @@ class _LoginPageState extends State<LoginPage>
                           const SizedBox(height: 24),
                           Center(
                             child: Text(
-                              'Version 1.0.2',
+                              'Version 1.0.3',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,

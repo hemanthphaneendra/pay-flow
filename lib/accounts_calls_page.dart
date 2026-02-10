@@ -299,7 +299,7 @@ class _AccountsCallsPageState extends State<AccountsCallsPage> {
       case CallRequestStatus.pendingCredit:
         return 'Pending Credit';
       case CallRequestStatus.draft:
-        return 'Draft';
+        return 'Ongoing';
       case CallRequestStatus.pendingReport:
         return 'Pending Report';
       case CallRequestStatus.completed:

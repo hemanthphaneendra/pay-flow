@@ -221,8 +221,9 @@ class _InvoicesTabState extends State<InvoicesTab> {
           final totalAmount = (() {
             final v = data['totalAmount'];
             if (v == null) return '';
-            if (v is num)
+            if (v is num) {
               return formatIndianCurrency(v.toDouble(), withSymbol: false);
+            }
             final parsed = double.tryParse(v.toString());
             return parsed == null
                 ? v.toString()
@@ -232,8 +233,9 @@ class _InvoicesTabState extends State<InvoicesTab> {
           final receivedAmount = (() {
             final v = data['receivedAmount'];
             if (v == null) return '';
-            if (v is num)
+            if (v is num) {
               return formatIndianCurrency(v.toDouble(), withSymbol: false);
+            }
             final parsed = double.tryParse(v.toString());
             return parsed == null
                 ? v.toString()
@@ -244,8 +246,9 @@ class _InvoicesTabState extends State<InvoicesTab> {
             if (widget.filterStatus == 'partial') {
               final p = data['pendingAmount'];
               if (p == null) return 'N/A';
-              if (p is num)
+              if (p is num) {
                 return formatIndianCurrency(p.toDouble(), withSymbol: false);
+              }
               final parsed = double.tryParse(p.toString());
               return parsed == null
                   ? p.toString()
@@ -307,7 +310,7 @@ class _InvoicesTabState extends State<InvoicesTab> {
                                 deductionMap['type']?.toString() ?? 'Unknown';
                             final amount = deductionMap['amount']?.toString();
                             if (amount != null && amount.isNotEmpty) {
-                              allDeductionInfo.add('$type (₹${amount})');
+                              allDeductionInfo.add('$type (₹$amount)');
                             } else {
                               allDeductionInfo.add(type);
                             }
